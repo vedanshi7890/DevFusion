@@ -1,6 +1,8 @@
 package com.devfusion.backend;
 
 import com.devfusion.backend.model.User;
+import com.devfusion.backend.model.UserResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -23,7 +25,7 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody User user) {
+    public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
 
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             return ResponseEntity
@@ -37,7 +39,7 @@ public class UserController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(savedUser);
+                .body(UserResponse.from(savedUser));
     }
 
     @GetMapping("/{id}")
@@ -51,6 +53,6 @@ public class UserController {
                     .body("User not found");
         }
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(UserResponse.from(user));
     }
 }

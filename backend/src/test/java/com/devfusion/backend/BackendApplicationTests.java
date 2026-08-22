@@ -4,6 +4,7 @@ import com.devfusion.backend.model.AIAnalysis;
 import com.devfusion.backend.model.ProgressHistory;
 import com.devfusion.backend.model.RoadmapProgress;
 import com.devfusion.backend.model.User;
+import com.devfusion.backend.model.UserResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,10 +46,10 @@ class BackendApplicationTests {
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
 
-        User savedUser = assertInstanceOf(User.class, response.getBody());
-        assertNotNull(savedUser.getId());
-        assertEquals("STUDENT", savedUser.getRole());
-        assertEquals("Backend Developer", savedUser.getCareerGoal());
+        UserResponse savedUser = assertInstanceOf(UserResponse.class, response.getBody());
+        assertNotNull(savedUser.id());
+        assertEquals("STUDENT", savedUser.role());
+        assertEquals("Backend Developer", savedUser.careerGoal());
     }
 
     @Test
@@ -99,7 +100,10 @@ class BackendApplicationTests {
 
     private User createSavedUser(String name, String email) {
         ResponseEntity<?> response = userController.createUser(createUser(name, email));
-        return assertInstanceOf(User.class, response.getBody());
+        UserResponse responseBody = assertInstanceOf(UserResponse.class, response.getBody());
+        User user = new User();
+        user.setId(responseBody.id());
+        return user;
     }
 
     private User createUser(String name, String email) {
