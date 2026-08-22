@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './App.css'
 
 function App() {
@@ -9,29 +9,6 @@ function App() {
  const [history, setHistory] = useState([])
 const [analysis, setAnalysis] = useState(null)
 const [userId, setUserId] = useState(null)
-useEffect(() => {
-
- const savedId = localStorage.getItem("userId")
-
- if(savedId){
-
-    const id = Number(savedId)
-
-    setUserId(id)
-
-    setDashboard(true)
-
-    loadUserProfile(id)
-
-    loadSkills()
-
-    loadRoadmapProgress(id)
-    loadHistory(id)
-    loadAnalysis(id)
-
- }
-
-}, [])
   const [userProfile, setUserProfile] = useState(null)
   const [recommendation, setRecommendation] = useState('')
   const [showRoadmap, setShowRoadmap] = useState(false)
@@ -282,7 +259,6 @@ await loadHistory(userId);
      const savedUser = await response.json()
 
 setUserId(savedUser.id)
-localStorage.setItem("userId", savedUser.id)
 
 setAccountCreated(true)
     } catch (error) {
