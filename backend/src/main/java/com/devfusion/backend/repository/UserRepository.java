@@ -1,4 +1,4 @@
-package com.devfusion.backend;
+package com.devfusion.backend.repository;
 
 import com.devfusion.backend.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;

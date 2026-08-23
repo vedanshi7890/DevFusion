@@ -1,6 +1,5 @@
 package com.devfusion.backend;
 
-
 import com.devfusion.backend.model.AIAnalysis;
 import com.devfusion.backend.model.RoadmapProgress;
 import com.devfusion.backend.model.Skill;
@@ -12,198 +11,155 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
 @RestController
 @RequestMapping("/api/analysis")
 @CrossOrigin(origins = "http://localhost:5173")
 public class AIAnalysisController {
 
-
     private final RoadmapProgressRepository roadmapRepository;
     private final SkillRepository skillRepository;
 
-
-
     public AIAnalysisController(
             RoadmapProgressRepository roadmapRepository,
-            SkillRepository skillRepository
-    ){
+            SkillRepository skillRepository) {
 
         this.roadmapRepository = roadmapRepository;
         this.skillRepository = skillRepository;
-
     }
-
-
 
     @GetMapping("/{userId}")
     public AIAnalysis getAnalysis(
-            @PathVariable Long userId
-    ){
+            @PathVariable Long userId) {
 
+        // Get all skills of this user
+        List<Skill> skills =
+                skillRepository.findByUserId(userId);
 
-        RoadmapProgress roadmap =
-                roadmapRepository.findByUserId(userId)
-                .orElse(new RoadmapProgress(userId));
+        String strength = "No skill data";
+        String weakSkill = "No skill data";
 
+        // Find strongest and weakest skill
+        if (!skills.isEmpty()) {
 
+            Skill strongest = skills.get(0);
+            Skill weakest = skills.get(0);
 
-        String steps = roadmap.getCompletedSteps();
+            for (Skill skill : skills) {
 
+                if (skill.getScore() > strongest.getScore()) {
+                    strongest = skill;
+                }
 
+                if (skill.getScore() < weakest.getScore()) {
+                    weakest = skill;
+                }
+            }
 
-        int completed = 0;
-
-
-
-        if(steps != null && !steps.isEmpty()){
-
-            completed = steps.split(",").length;
-
+            strength = strongest.getName();
+            weakSkill = weakest.getName();
         }
 
+        // Find roadmap directly using userId and weakest skill
+        RoadmapProgress weakestRoadmap = null;
 
+        if (!weakSkill.equals("No skill data")) {
 
+            weakestRoadmap =
+                    roadmapRepository
+                            .findByUserIdAndSkill(userId, weakSkill)
+                            .orElse(null);
+        }
+
+        int completed = 0;
         int total = 5;
+        int percentage = 0;
 
+        if (weakestRoadmap != null) {
 
+            percentage =
+                    weakestRoadmap.getProgressPercentage();
 
-        int percentage =
-                (completed * 100) / total;
+            if (percentage < 0) {
+                percentage = 0;
+            }
 
+            if (percentage > 100) {
+                percentage = 100;
+            }
 
-
+            completed =
+                    (percentage * total) / 100;
+        }
 
         String level;
 
-
-
-        if(percentage < 40){
+        if (percentage < 40) {
 
             level = "Backend Learner";
 
-        }
-        else if(percentage < 80){
+        } else if (percentage < 80) {
 
             level = "Intermediate Backend Developer";
 
-        }
-        else{
+        } else {
 
             level = "Backend Ready Developer";
-
         }
-
-
-
-
-        // Skill Analysis
-
-        List<Skill> skills =
-                skillRepository.findAll();
-
-
-
-        String strength = "No skill data";
-
-        String weakSkill = "No skill data";
-
-
-
-        if(!skills.isEmpty()){
-
-
-            Skill strongest = skills.get(0);
-
-            Skill weakest = skills.get(0);
-
-
-
-            for(Skill skill : skills){
-
-
-                if(skill.getScore() > strongest.getScore()){
-
-                    strongest = skill;
-
-                }
-
-
-
-                if(skill.getScore() < weakest.getScore()){
-
-                    weakest = skill;
-
-                }
-
-            }
-
-
-
-            strength = strongest.getName();
-
-            weakSkill = weakest.getName();
-
-
-        }
-
-
-
-
 
         String recommendation;
 
-
-
-        if(completed == 0){
+        if (completed == 0) {
 
             recommendation =
-                    "Start with REST Controllers";
+                    "Start with Step 1 of your "
+                    + weakSkill
+                    + " roadmap.";
 
-        }
-        else if(completed == 1){
-
-            recommendation =
-                    "Complete CRUD APIs";
-
-        }
-        else if(completed == 2){
+        } else if (completed == 1) {
 
             recommendation =
-                    "Learn MySQL Database Integration";
+                    "Continue with Step 2 of your "
+                    + weakSkill
+                    + " roadmap.";
 
-        }
-        else if(completed == 3){
-
-            recommendation =
-                    "Focus on Spring Boot Security";
-
-        }
-        else if(completed == 4){
+        } else if (completed == 2) {
 
             recommendation =
-                    "Deploy your backend application";
+                    "Continue with Step 3 of your "
+                    + weakSkill
+                    + " roadmap.";
 
-        }
-        else{
+        } else if (completed == 3) {
 
             recommendation =
-                    "All roadmap steps completed 🎉";
+                    "Continue with Step 4 of your "
+                    + weakSkill
+                    + " roadmap.";
 
+        } else if (completed == 4) {
+
+            recommendation =
+                    "Complete the final step of your "
+                    + weakSkill
+                    + " roadmap.";
+
+        } else {
+
+            recommendation =
+                    "Your "
+                    + weakSkill
+                    + " roadmap is completed 🎉";
         }
-
-
-
 
         return new AIAnalysis(
                 completed,
                 total,
                 percentage + "%",
                 level,
-                strength + " (Strong Skill) | Weak: " + weakSkill,
+                strength
+                        + " (Strong Skill) | Weak: "
+                        + weakSkill,
                 recommendation
         );
-
     }
-
 }

@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import './App.css'
+import Assessment from './Assessment'
 
 function App() {
   const [started, setStarted] = useState(false)
   const [accountCreated, setAccountCreated] = useState(false)
   const [dashboard, setDashboard] = useState(false)
+ const [showAssessment, setShowAssessment] = useState(false)
+ const [assessmentSkill, setAssessmentSkill] = useState("Java")
   const [skills, setSkills] = useState([])
  const [history, setHistory] = useState([])
 const [analysis, setAnalysis] = useState(null)
@@ -12,6 +15,7 @@ const [userId, setUserId] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [recommendation, setRecommendation] = useState('')
   const [showRoadmap, setShowRoadmap] = useState(false)
+  const [showRecommendationDetails, setShowRecommendationDetails] = useState(false)
   const [completedSteps, setCompletedSteps] = useState([])
 
   const [roadmapLoading, setRoadmapLoading] = useState(false)
@@ -33,20 +37,25 @@ const [userId, setUserId] = useState(null)
 
   async function loadSkills() {
     try {
-      const response = await fetch('http://localhost:8080/api/skills')
+        const response = await fetch(
+            `http://localhost:8080/api/skills/${userId}`
+        )
 
-      if (!response.ok) {
-        throw new Error('Failed to load skills')
-      }
+        if (!response.ok) {
+            throw new Error('Failed to load skills')
+        }
 
-      const data = await response.json()
+        const data = await response.json()
 
-      setSkills(data)
+        console.log("User Skills:", data)
+
+        setSkills(data)
+
     } catch (error) {
-      console.error('Error loading skills:', error)
-      setSkills([])
+        console.error('Error loading skills:', error)
+        setSkills([])
     }
-  }
+}
   async function loadHistory(id) {
 
   try {
@@ -106,31 +115,93 @@ async function loadAnalysis(id){
 
 }
 
-async function loadRecommendation(careerGoal) {
-  try {
-    const response = await fetch(
-      `http://localhost:8080/api/recommendation/${encodeURIComponent(careerGoal)}`
-    )
+function loadRecommendation(careerGoal) {
 
-    if (!response.ok) {
-      throw new Error('Failed to load recommendation')
+    if (!skills || skills.length === 0) {
+        setRecommendation(
+            "Complete your skill assessments to receive a personalized recommendation."
+        )
+        return
     }
-const data = await response.text()
 
-console.log("Recommendation from backend:", data)
+    let relevantSkills = skills
 
-setRecommendation(data)
-    
-  } catch (error) {
-    console.error('Error loading recommendation:', error)
-    setRecommendation('No recommendation available')
-  }
+    if (careerGoal === "Backend Developer") {
+
+        relevantSkills = skills.filter(
+            (skill) =>
+                skill.name === "Java" ||
+                skill.name === "SQL" ||
+                skill.name === "Spring Boot"
+        )
+
+    } else if (careerGoal === "Frontend Developer") {
+
+        relevantSkills = skills.filter(
+            (skill) =>
+                skill.name === "JavaScript" ||
+                skill.name === "React"
+        )
+
+    } else if (careerGoal === "Full Stack Developer") {
+
+        relevantSkills = skills
+
+    }
+
+    if (relevantSkills.length === 0) {
+        setRecommendation(
+            "Complete more skill assessments to receive a personalized recommendation."
+        )
+        return
+    }
+
+    let weakestSkill = relevantSkills[0]
+
+    for (let i = 1; i < relevantSkills.length; i++) {
+
+        if (relevantSkills[i].score < weakestSkill.score) {
+            weakestSkill = relevantSkills[i]
+        }
+
+    }
+
+    let message = ""
+
+    if (weakestSkill.name === "Java") {
+
+        message =
+            "Your improvement area is Java. Focus on OOP concepts, collections, exception handling, multithreading and advanced Java programming."
+
+    } else if (weakestSkill.name === "SQL") {
+
+        message =
+            "Your improvement area is SQL. Focus on joins, subqueries, aggregation, indexing, query optimization and database design."
+
+    } else if (weakestSkill.name === "React") {
+
+        message =
+            "Your improvement area is React. Focus on components, state management, hooks, API integration and modern React patterns."
+
+    } else if (weakestSkill.name === "Spring Boot") {
+
+        message =
+            "Your improvement area is Spring Boot. Focus on REST APIs, CRUD operations, MySQL integration, Spring Security and backend deployment."
+
+    } else {
+
+        message =
+            `Your improvement area is ${weakestSkill.name}. Continue practicing this skill to improve your career readiness.`
+
+    }
+
+    setRecommendation(message)
 }
 
-  async function loadRoadmapProgress(id) {
+  async function loadRoadmapProgress(id,skill) {
   try {
     const response = await fetch(
-      `http://localhost:8080/api/roadmap/${id}`
+      `http://localhost:8080/api/roadmap/${id}/${skill}`
     )
 
     if (!response.ok) {
@@ -139,15 +210,16 @@ setRecommendation(data)
 
     const data = await response.json()
 
-    if (data.completedSteps) {
-      const steps = data.completedSteps
+    const steps = data.completedSteps
+    ? data.completedSteps
         .split(',')
         .filter((step) => step !== '')
         .map(Number)
+    : []
 
-      setCompletedSteps(steps)
-      await loadHistory(id);
-    }
+setCompletedSteps(steps)
+
+await loadHistory(id)
 
   } catch (error) {
     console.error('Error loading roadmap progress:', error)
@@ -169,7 +241,7 @@ setRecommendation(data)
     setRoadmapError('')
 
     try {
-      const response = await fetch(`http://localhost:8080/api/roadmap/${userId}`, {
+      const response = await fetch(`http://localhost:8080/api/roadmap/${userId}/${getWeakestSkill()?.name}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -186,8 +258,10 @@ setRecommendation(data)
 
       const data = await response.json()
       
-await loadHistory(userId);
-      setCompletedSteps(
+await loadHistory(userId)
+await loadAnalysis(userId)
+
+setCompletedSteps(
   data.completedSteps
     .split(",")
     .filter((step) => step !== "")
@@ -232,69 +306,191 @@ await loadHistory(userId);
   }
 
   async function handleCreateAccount(event) {
-    event.preventDefault()
+  event.preventDefault()
 
-    setRegisterError('')
-    setRegisterLoading(true)
+  setRegisterError('')
+  setRegisterLoading(true)
 
-    try {
-      const response = await fetch('http://localhost:8080/api/users', {
+  try {
+    const requestData = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      careerGoal: formData.careerGoal
+    }
+
+    console.log("Sending registration data:", requestData)
+
+    const response = await fetch(
+      'http://localhost:8080/api/users',
+      {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
-      })
-
-      if (response.status === 409) {
-        setRegisterError('This email is already registered.')
-        setRegisterLoading(false)
-        return
+        body: JSON.stringify(requestData)
       }
+    )
 
-      if (!response.ok) {
-        throw new Error('Failed to create account')
-      }
-
-     const savedUser = await response.json()
-
-setUserId(savedUser.id)
-
-setAccountCreated(true)
-    } catch (error) {
-      console.error('Registration error:', error)
-      setRegisterError(
-        'Unable to create account. Please make sure the backend is running.'
-      )
-    } finally {
+    if (response.status === 409) {
+      setRegisterError('This email is already registered.')
       setRegisterLoading(false)
+      return
     }
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error("Backend error:", errorText)
+      throw new Error('Failed to create account')
+    }
+
+    const savedUser = await response.json()
+
+    console.log("Account created:", savedUser)
+
+    setUserId(savedUser.id)
+    setAccountCreated(true)
+
+  } catch (error) {
+    console.error('Registration error:', error)
+
+    setRegisterError(
+      'Unable to create account. Please make sure all fields are filled and the backend is running.'
+    )
+  } finally {
+    setRegisterLoading(false)
   }
-
-
+}
 async function handleContinue() {
 
-    await loadSkills()
+  try {
 
+    const skillsResponse = await fetch(
+      `http://localhost:8080/api/skills/${userId}`
+    )
+
+    if (!skillsResponse.ok) {
+      throw new Error("Failed to load skills")
+    }
+
+    const skillsData = await skillsResponse.json()
+
+    setSkills(skillsData)
 
     const response = await fetch(
       `http://localhost:8080/api/users/${userId}`
     )
 
+    if (!response.ok) {
+      throw new Error("Failed to load user")
+    }
 
     const data = await response.json()
 
-
     setUserProfile(data)
 
+    let relevantSkills = skillsData
 
-   await loadRecommendation(data.careerGoal)
+    if (data.careerGoal === "Backend Developer") {
 
-   await loadRoadmapProgress(userId)
-   await loadHistory(userId)
+      relevantSkills = skillsData.filter(
+        (skill) =>
+          skill.name === "Java" ||
+          skill.name === "SQL" ||
+          skill.name === "Spring Boot"
+      )
+
+    } else if (data.careerGoal === "Frontend Developer") {
+
+      relevantSkills = skillsData.filter(
+        (skill) =>
+          skill.name === "React"
+      )
+
+    } else if (data.careerGoal === "Full Stack Developer") {
+
+      relevantSkills = skillsData
+
+    }
+
+    if (relevantSkills.length > 0) {
+
+      let weakestSkill = relevantSkills[0]
+
+      for (let i = 1; i < relevantSkills.length; i++) {
+
+        if (
+          relevantSkills[i].score <
+          weakestSkill.score
+        ) {
+          weakestSkill = relevantSkills[i]
+        }
+
+      }
+
+      if (weakestSkill.name === "Java") {
+
+        setRecommendation(
+          "Your improvement area is Java. Focus on OOP concepts, collections, exception handling, multithreading and advanced Java programming."
+        )
+
+      } else if (weakestSkill.name === "SQL") {
+
+        setRecommendation(
+          "Your improvement area is SQL. Focus on joins, subqueries, aggregation, indexing, query optimization and database design."
+        )
+
+      } else if (weakestSkill.name === "Spring Boot") {
+
+        setRecommendation(
+          "Your improvement area is Spring Boot. Focus on REST APIs, CRUD operations, MySQL integration, Spring Security and backend deployment."
+        )
+
+      } else if (weakestSkill.name === "React") {
+
+        setRecommendation(
+          "Your improvement area is React. Focus on components, state management, hooks, API integration and modern React patterns."
+        )
+
+      } else {
+
+        setRecommendation(
+          `Your improvement area is ${weakestSkill.name}. Continue practicing this skill to improve your career readiness.`
+        )
+
+      }
+
+      console.log("Weakest skill:", weakestSkill.name)
+
+      await loadRoadmapProgress(
+        userId,
+        weakestSkill.name
+      )
+
+    } else {
+
+      setRecommendation(
+        "Complete your skill assessments to receive a personalized recommendation."
+      )
+
+    }
+
+    await loadHistory(userId)
+
+    await loadAnalysis(userId)
 
     setDashboard(true)
+
+  } catch (error) {
+
+    console.error(
+      "Error loading dashboard:",
+      error
+    )
+
+  }
 }
+
   function calculateAverage() {
     if (skills.length === 0) {
       return 0
@@ -391,6 +587,109 @@ function getWeakestSkill() {
 
 }
   if (dashboard) {
+    if (showAssessment) {
+    return (
+        <div className="app">
+
+            <nav className="navbar">
+                <div className="logo">
+                    DevFusion
+                </div>
+
+                <div className="nav-links">
+                    <button
+                        className="back-button"
+                        onClick={() => setShowAssessment(false)}
+                    >
+                        ← Back to Dashboard
+                    </button>
+                </div>
+            </nav>
+<Assessment
+    userId={userId}
+    skill={assessmentSkill}
+   onComplete={async () => {
+
+    setShowAssessment(false)
+
+    const response = await fetch(
+        `http://localhost:8080/api/skills/${userId}`
+    )
+
+    if (response.ok) {
+
+        const data = await response.json()
+
+        setSkills(data)
+
+        let relevantSkills = data
+
+        if (
+            userProfile?.careerGoal === "Backend Developer"
+        ) {
+
+            relevantSkills = data.filter(
+                (skill) =>
+                    skill.name === "Java" ||
+                    skill.name === "SQL" ||
+                    skill.name === "Spring Boot"
+            )
+
+        }
+
+        if (relevantSkills.length > 0) {
+
+            let weakestSkill = relevantSkills[0]
+
+            for (let i = 1; i < relevantSkills.length; i++) {
+
+                if (
+                    relevantSkills[i].score <
+                    weakestSkill.score
+                ) {
+                    weakestSkill = relevantSkills[i]
+                }
+
+            }
+
+            if (weakestSkill.name === "Java") {
+
+                setRecommendation(
+                    "Your improvement area is Java. Focus on OOP concepts, collections, exception handling, multithreading and advanced Java programming."
+                )
+
+            } else if (weakestSkill.name === "SQL") {
+
+                setRecommendation(
+                    "Your improvement area is SQL. Focus on joins, subqueries, aggregation, indexing, query optimization and database design."
+                )
+
+            } else if (weakestSkill.name === "Spring Boot") {
+
+                setRecommendation(
+                    "Your improvement area is Spring Boot. Focus on REST APIs, CRUD operations, MySQL integration, Spring Security and backend deployment."
+                )
+
+            } else if (weakestSkill.name === "React") {
+
+                setRecommendation(
+                    "Your improvement area is React. Focus on components, state management, hooks, API integration and modern React patterns."
+                )
+
+            }
+
+        }
+
+    }
+
+    await loadHistory(userId)
+    await loadAnalysis(userId)
+}}
+/>
+
+        </div>
+    )
+}
     return (
       <div className="app">
 
@@ -531,7 +830,49 @@ function getWeakestSkill() {
               </div>
 
             </div>
+<div className="assessment-buttons">
 
+    <button
+        className="hero-button"
+        onClick={() => {
+            setAssessmentSkill("Java")
+            setShowAssessment(true)
+        }}
+    >
+        🧠 Take Java Assessment
+    </button>
+
+    <button
+        className="hero-button"
+        onClick={() => {
+            setAssessmentSkill("SQL")
+            setShowAssessment(true)
+        }}
+    >
+        🗄️ Take SQL Assessment
+    </button>
+
+    <button
+        className="hero-button"
+        onClick={() => {
+            setAssessmentSkill("React")
+            setShowAssessment(true)
+        }}
+    >
+        ⚛️ Take React Assessment
+    </button>
+
+    <button
+        className="hero-button"
+        onClick={() => {
+            setAssessmentSkill("Spring Boot")
+            setShowAssessment(true)
+        }}
+    >
+        🌱 Take Spring Boot Assessment
+    </button>
+
+</div>
             <div className="dashboard-skills">
 
               {skills.map((skill) => (
@@ -591,13 +932,94 @@ function getWeakestSkill() {
 </p>
 <button
   className="hero-button"
-  onClick={async () => {
-    await loadRoadmapProgress(userId)
-    setShowRoadmap(true)
+  onClick={() => {
+    setShowRecommendationDetails(
+      !showRecommendationDetails
+    )
   }}
 >
-  View Recommendation
+  {showRecommendationDetails
+    ? "Hide Recommendation"
+    : "View Recommendation"}
 </button>
+<button
+  className="hero-button"
+  onClick={() => {
+  setShowRoadmap(true)
+  loadRoadmapProgress(
+    userId,
+    getWeakestSkill()?.name
+  )
+}}
+>
+  View Learning Roadmap
+</button>
+{showRecommendationDetails && (
+  <div className="recommendation-details">
+
+    <div className="detail-card">
+      <span>🎯 FOCUS AREA</span>
+      <h3>
+        {skills.length > 0
+          ? skills.reduce((weakest, skill) =>
+              skill.score < weakest.score
+                ? skill
+                : weakest
+            ).name
+          : "Complete an assessment"}
+      </h3>
+      <p>
+        This is currently your weakest assessed skill
+        and should be your primary area of improvement.
+      </p>
+    </div>
+
+    <div className="detail-card">
+      <span>📚 WHAT TO LEARN</span>
+      <p>
+        {skills.length > 0 &&
+        skills.reduce((weakest, skill) =>
+          skill.score < weakest.score
+            ? skill
+            : weakest
+        ).name === "Java"
+          ? "OOP concepts, Collections, Exception Handling, Multithreading and Advanced Java."
+          : skills.length > 0 &&
+            skills.reduce((weakest, skill) =>
+              skill.score < weakest.score
+                ? skill
+                : weakest
+            ).name === "SQL"
+          ? "Joins, Subqueries, Aggregation, Indexing, Query Optimization and Database Design."
+          : skills.length > 0 &&
+            skills.reduce((weakest, skill) =>
+              skill.score < weakest.score
+                ? skill
+                : weakest
+            ).name === "React"
+          ? "Components, State Management, Hooks, API Integration and Modern React Patterns."
+          : skills.length > 0 &&
+            skills.reduce((weakest, skill) =>
+              skill.score < weakest.score
+                ? skill
+                : weakest
+            ).name === "Spring Boot"
+          ? "REST APIs, CRUD Operations, MySQL Integration, Spring Security and Backend Deployment."
+          : "Complete more assessments to receive a detailed learning recommendation."}
+      </p>
+    </div>
+
+    <div className="detail-card">
+      <span>🚀 NEXT ACTION</span>
+      <p>
+        Take another skill assessment and follow the
+        recommended learning roadmap to improve your
+        career readiness.
+      </p>
+    </div>
+
+  </div>
+)}
             </div>
 
             
@@ -724,9 +1146,13 @@ Next Recommendation:
       YOUR LEARNING ROADMAP
     </p>
 
-    <h2>
-      Spring Boot & Backend Roadmap
-    </h2>
+   <h2>
+  {skills.length > 0
+    ? `${skills.reduce((weakest, skill) =>
+        skill.score < weakest.score ? skill : weakest
+      ).name} Improvement Roadmap`
+    : "Learning Roadmap"}
+</h2>
     <div className="roadmap-progress">
   <strong>Roadmap Progress: {roadmapProgress}%</strong>
 
@@ -749,312 +1175,933 @@ Next Recommendation:
   {
   completedSteps.length === 5 && (
     <p className="completion-message">
-      🎉 Congratulations! You have completed your backend learning roadmap.
+      🎉 Congratulations! You have completed your {getWeakestSkill()?.name || "learning"} roadmap.
     </p>
   )
 }
 </div>
 
-    <div className="recommendation-details">
+<div className="recommendation-details">
 
-      <div className="detail-card">
-        <span>🎯 WHY THIS?</span>
-        <p>
-          Spring Boot is currently your weakest backend skill,
-          so improving it can significantly increase your
-          backend development readiness.
-        </p>
-      </div>
+  <div className="detail-card">
+    <span>🎯 WHY THIS?</span>
+    <p>
+      {getWeakestSkill()?.name || "Your weakest skill"} is currently
+      your weakest assessed skill, so improving it can significantly
+      increase your career readiness.
+    </p>
+  </div>
 
-      <div className="detail-card">
-        <span>📚 WHAT TO LEARN</span>
-        <p>
-          REST APIs, CRUD operations, MySQL integration,
-          Spring Security, and backend deployment.
-        </p>
-      </div>
-
-      <div className="detail-card">
-        <span>⏱️ ESTIMATED TIME</span>
-        <p>
-          3–4 weeks with consistent daily practice.
-        </p>
-      </div>
-
-    </div>
+  <div className="detail-card">
+    <span>📚 WHAT TO LEARN</span>
 
     <p>
-      Follow these steps to strengthen your backend development skills.
+      {getWeakestSkill()?.name === "SQL"
+        ? "SQL fundamentals, joins, subqueries, aggregation, indexing, query optimization and database design."
+        : getWeakestSkill()?.name === "Java"
+        ? "OOP concepts, Collections, Exception Handling, Multithreading and Advanced Java."
+        : getWeakestSkill()?.name === "React"
+        ? "Components, State Management, Hooks, API Integration and Modern React Patterns."
+        : getWeakestSkill()?.name === "Spring Boot"
+        ? "REST APIs, CRUD Operations, MySQL Integration, Spring Security and Backend Deployment."
+        : "Complete more assessments to receive a detailed learning recommendation."}
     </p>
+  </div>
 
+  <div className="detail-card">
+    <span>⏱️ ESTIMATED TIME</span>
+
+    <p>
+      3–4 weeks with consistent daily practice.
+    </p>
+  </div>
+
+</div>
+<p>
+  Follow these steps to strengthen your {getWeakestSkill()?.name || "development"} skills.
+</p>
+    
     <div className="roadmap-list">
+      {getWeakestSkill()?.name === "Java" && (
+  <>
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(1) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(1)}
+    >
+      <strong>
+        {completedSteps.includes(1) ? "✓ " : "01 — "}
+        OOP Concepts
+      </strong>
 
-<div
-className={`roadmap-item ${completedSteps.includes(1) ? "completed-step" : ""}`}
-onClick={() => toggleRoadmapStep(1)}
->
+      <span>
+        Master classes, objects, inheritance, polymorphism and encapsulation.
+      </span>
 
-<strong>
-{completedSteps.includes(1) ? '✓ ' : '01 — '}
-REST Controllers
-</strong>
+      <small>
+        {completedSteps.includes(1)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
 
-<span>
-Learn how to create REST APIs using Spring Boot.
-</span>
+      {completedSteps.includes(1) && (
+        <div className="step-details">
+          <p>Difficulty: Beginner</p>
+          <p>Duration: 3 Days</p>
 
-<small>
-{completedSteps.includes(1)
-? 'Completed'
-: 'Click to mark as completed'}
-</small>
+          <p>
+            Topics:
+            <br />
+            ✓ Classes & Objects
+            <br />
+            ✓ Encapsulation
+            <br />
+            ✓ Inheritance
+            <br />
+            ✓ Polymorphism
+            <br />
+            ✓ Abstraction
+          </p>
+        </div>
+      )}
+    </div>
 
-{
-completedSteps.includes(1) && (
-<div className="step-details">
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(2) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(2)}
+    >
+      <strong>
+        {completedSteps.includes(2) ? "✓ " : "02 — "}
+        Java Collections
+      </strong>
 
-<p>
-Difficulty: Beginner
-</p>
+      <span>
+        Learn how to efficiently store and manipulate groups of objects.
+      </span>
 
-<p>
-Duration: 3 Days
-</p>
+      <small>
+        {completedSteps.includes(2)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
 
-<p>
-Topics:
-<br/>
-✓ @RestController
-<br/>
-✓ GET API
-<br/>
-✓ POST API
-<br/>
-✓ Request & Response Handling
-</p>
+      {completedSteps.includes(2) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 4 Days</p>
 
+          <p>
+            Topics:
+            <br />
+            ✓ ArrayList
+            <br />
+            ✓ LinkedList
+            <br />
+            ✓ HashSet
+            <br />
+            ✓ HashMap
+            <br />
+            ✓ PriorityQueue
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(3) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(3)}
+    >
+      <strong>
+        {completedSteps.includes(3) ? "✓ " : "03 — "}
+        Exception Handling
+      </strong>
+
+      <span>
+        Learn how to handle runtime errors and build reliable Java programs.
+      </span>
+
+      <small>
+        {completedSteps.includes(3)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(3) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 3 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ try-catch
+            <br />
+            ✓ finally
+            <br />
+            ✓ throw
+            <br />
+            ✓ throws
+            <br />
+            ✓ Custom Exceptions
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(4) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(4)}
+    >
+      <strong>
+        {completedSteps.includes(4) ? "✓ " : "04 — "}
+        Multithreading
+      </strong>
+
+      <span>
+        Learn how Java handles multiple tasks running concurrently.
+      </span>
+
+      <small>
+        {completedSteps.includes(4)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(4) && (
+        <div className="step-details">
+          <p>Difficulty: Advanced</p>
+          <p>Duration: 5 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Threads
+            <br />
+            ✓ Runnable
+            <br />
+            ✓ Thread Lifecycle
+            <br />
+            ✓ Synchronization
+            <br />
+            ✓ Concurrency
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(5) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(5)}
+    >
+      <strong>
+        {completedSteps.includes(5) ? "✓ " : "05 — "}
+        Advanced Java
+      </strong>
+
+      <span>
+        Strengthen advanced Java programming and prepare for backend development.
+      </span>
+
+      <small>
+        {completedSteps.includes(5)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(5) && (
+        <div className="step-details">
+          <p>Difficulty: Advanced</p>
+          <p>Duration: 5 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Streams
+            <br />
+            ✓ Lambda Expressions
+            <br />
+            ✓ Functional Interfaces
+            <br />
+            ✓ Generics
+            <br />
+            ✓ Java Backend Concepts
+          </p>
+        </div>
+      )}
+    </div>
+  </>
+)}
+{getWeakestSkill()?.name === "React" && (
+  <>
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(1) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(1)}
+    >
+      <strong>
+        {completedSteps.includes(1) ? "✓ " : "01 — "}
+        React Components
+      </strong>
+
+      <span>
+        Learn components, props, JSX and component structure.
+      </span>
+
+      <small>
+        {completedSteps.includes(1)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(1) && (
+        <div className="step-details">
+          <p>Difficulty: Beginner</p>
+          <p>Duration: 3 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Functional Components
+            <br />
+            ✓ JSX
+            <br />
+            ✓ Props
+            <br />
+            ✓ Component Structure
+            <br />
+            ✓ Reusable Components
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(2) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(2)}
+    >
+      <strong>
+        {completedSteps.includes(2) ? "✓ " : "02 — "}
+        State Management & Hooks
+      </strong>
+
+      <span>
+        Learn useState, useEffect and modern React state management.
+      </span>
+
+      <small>
+        {completedSteps.includes(2)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(2) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 4 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ useState
+            <br />
+            ✓ useEffect
+            <br />
+            ✓ Event Handling
+            <br />
+            ✓ Conditional Rendering
+            <br />
+            ✓ State Management
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(3) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(3)}
+    >
+      <strong>
+        {completedSteps.includes(3) ? "✓ " : "03 — "}
+        API Integration
+      </strong>
+
+      <span>
+        Learn how React applications communicate with backend APIs.
+      </span>
+
+      <small>
+        {completedSteps.includes(3)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(3) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 4 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Fetch API
+            <br />
+            ✓ GET Requests
+            <br />
+            ✓ POST Requests
+            <br />
+            ✓ JSON Data
+            <br />
+            ✓ Backend Integration
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(4) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(4)}
+    >
+      <strong>
+        {completedSteps.includes(4) ? "✓ " : "04 — "}
+        React Routing
+      </strong>
+
+      <span>
+        Learn navigation and multi-page application structure.
+      </span>
+
+      <small>
+        {completedSteps.includes(4)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(4) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 3 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ React Router
+            <br />
+            ✓ Routes
+            <br />
+            ✓ Navigation
+            <br />
+            ✓ Dynamic Routes
+            <br />
+            ✓ Protected Routes
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(5) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(5)}
+    >
+      <strong>
+        {completedSteps.includes(5) ? "✓ " : "05 — "}
+        Modern React Patterns
+      </strong>
+
+      <span>
+        Learn advanced patterns used in production React applications.
+      </span>
+
+      <small>
+        {completedSteps.includes(5)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(5) && (
+        <div className="step-details">
+          <p>Difficulty: Advanced</p>
+          <p>Duration: 5 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Custom Hooks
+            <br />
+            ✓ Context API
+            <br />
+            ✓ Component Composition
+            <br />
+            ✓ Performance Optimization
+            <br />
+            ✓ Clean React Architecture
+          </p>
+        </div>
+      )}
+    </div>
+  </>
+)}
+{getWeakestSkill()?.name === "Spring Boot" && (
+  <>
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(1) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(1)}
+    >
+      <strong>
+        {completedSteps.includes(1) ? "✓ " : "01 — "}
+        REST Controllers
+      </strong>
+
+      <span>
+        Learn how to create REST APIs using Spring Boot controllers.
+      </span>
+
+      <small>
+        {completedSteps.includes(1)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(1) && (
+        <div className="step-details">
+          <p>Difficulty: Beginner</p>
+          <p>Duration: 3 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ @RestController
+            <br />
+            ✓ @GetMapping
+            <br />
+            ✓ @PostMapping
+            <br />
+            ✓ @PutMapping
+            <br />
+            ✓ @DeleteMapping
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(2) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(2)}
+    >
+      <strong>
+        {completedSteps.includes(2) ? "✓ " : "02 — "}
+        CRUD APIs
+      </strong>
+
+      <span>
+        Build Create, Read, Update and Delete operations using Spring Boot.
+      </span>
+
+      <small>
+        {completedSteps.includes(2)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(2) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 4 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Create
+            <br />
+            ✓ Read
+            <br />
+            ✓ Update
+            <br />
+            ✓ Delete
+            <br />
+            ✓ REST API Design
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(3) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(3)}
+    >
+      <strong>
+        {completedSteps.includes(3) ? "✓ " : "03 — "}
+        MySQL Database
+      </strong>
+
+      <span>
+        Learn how to connect Spring Boot applications with MySQL databases.
+      </span>
+
+      <small>
+        {completedSteps.includes(3)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(3) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 4 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ MySQL
+            <br />
+            ✓ JPA
+            <br />
+            ✓ Hibernate
+            <br />
+            ✓ Entities
+            <br />
+            ✓ Repositories
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(4) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(4)}
+    >
+      <strong>
+        {completedSteps.includes(4) ? "✓ " : "04 — "}
+        Spring Boot Security
+      </strong>
+
+      <span>
+        Learn authentication and authorization for backend applications.
+      </span>
+
+      <small>
+        {completedSteps.includes(4)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(4) && (
+        <div className="step-details">
+          <p>Difficulty: Advanced</p>
+          <p>Duration: 5 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Spring Security
+            <br />
+            ✓ Authentication
+            <br />
+            ✓ Authorization
+            <br />
+            ✓ Password Security
+            <br />
+            ✓ Role-Based Access
+          </p>
+        </div>
+      )}
+    </div>
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(5) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(5)}
+    >
+      <strong>
+        {completedSteps.includes(5) ? "✓ " : "05 — "}
+        Backend Deployment
+      </strong>
+
+      <span>
+        Learn how to prepare and deploy a Spring Boot backend application.
+      </span>
+
+      <small>
+        {completedSteps.includes(5)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(5) && (
+        <div className="step-details">
+          <p>Difficulty: Advanced</p>
+          <p>Duration: 5 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Application Configuration
+            <br />
+            ✓ Environment Variables
+            <br />
+            ✓ Build JAR
+            <br />
+            ✓ Backend Deployment
+            <br />
+            ✓ Production Configuration
+          </p>
+        </div>
+      )}
+    </div>
+  </>
+)}
+
+{getWeakestSkill()?.name === "SQL" && (
+  <>
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(1) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(1)}
+    >
+      <strong>
+        {completedSteps.includes(1) ? "✓ " : "01 — "}
+        SQL Fundamentals
+      </strong>
+
+      <span>
+        Learn SELECT queries, filtering, sorting and aggregation.
+      </span>
+
+      <small>
+        {completedSteps.includes(1)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(1) && (
+        <div className="step-details">
+          <p>Difficulty: Beginner</p>
+          <p>Duration: 3 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ SELECT
+            <br />
+            ✓ WHERE
+            <br />
+            ✓ ORDER BY
+            <br />
+            ✓ GROUP BY
+            <br />
+            ✓ Aggregate Functions
+          </p>
+        </div>
+      )}
+    </div>
+
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(2) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(2)}
+    >
+      <strong>
+        {completedSteps.includes(2) ? "✓ " : "02 — "}
+        SQL Joins
+      </strong>
+
+      <span>
+        Learn how to combine data from multiple database tables.
+      </span>
+
+      <small>
+        {completedSteps.includes(2)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(2) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 4 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ INNER JOIN
+            <br />
+            ✓ LEFT JOIN
+            <br />
+            ✓ RIGHT JOIN
+            <br />
+            ✓ FULL JOIN
+            <br />
+            ✓ SELF JOIN
+          </p>
+        </div>
+      )}
+    </div>
+
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(3) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(3)}
+    >
+      <strong>
+        {completedSteps.includes(3) ? "✓ " : "03 — "}
+        Subqueries & Aggregation
+      </strong>
+
+      <span>
+        Master advanced SQL queries and data analysis.
+      </span>
+
+      <small>
+        {completedSteps.includes(3)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(3) && (
+        <div className="step-details">
+          <p>Difficulty: Intermediate</p>
+          <p>Duration: 4 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Subqueries
+            <br />
+            ✓ Nested Queries
+            <br />
+            ✓ COUNT
+            <br />
+            ✓ SUM
+            <br />
+            ✓ AVG
+            <br />
+            ✓ HAVING
+          </p>
+        </div>
+      )}
+    </div>
+
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(4) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(4)}
+    >
+      <strong>
+        {completedSteps.includes(4) ? "✓ " : "04 — "}
+        Indexing & Query Optimization
+      </strong>
+
+      <span>
+        Learn how to make database queries faster and more efficient.
+      </span>
+
+      <small>
+        {completedSteps.includes(4)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(4) && (
+        <div className="step-details">
+          <p>Difficulty: Advanced</p>
+          <p>Duration: 5 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Indexes
+            <br />
+            ✓ Query Execution
+            <br />
+            ✓ EXPLAIN
+            <br />
+            ✓ Query Optimization
+            <br />
+            ✓ Performance Tuning
+          </p>
+        </div>
+      )}
+    </div>
+
+
+    <div
+      className={`roadmap-item ${
+        completedSteps.includes(5) ? "completed-step" : ""
+      }`}
+      onClick={() => toggleRoadmapStep(5)}
+    >
+      <strong>
+        {completedSteps.includes(5) ? "✓ " : "05 — "}
+        Database Design
+      </strong>
+
+      <span>
+        Learn how to design efficient relational databases.
+      </span>
+
+      <small>
+        {completedSteps.includes(5)
+          ? "Completed"
+          : "Click to mark as completed"}
+      </small>
+
+      {completedSteps.includes(5) && (
+        <div className="step-details">
+          <p>Difficulty: Advanced</p>
+          <p>Duration: 5 Days</p>
+
+          <p>
+            Topics:
+            <br />
+            ✓ Normalization
+            <br />
+            ✓ Primary Keys
+            <br />
+            ✓ Foreign Keys
+            <br />
+            ✓ Relationships
+            <br />
+            ✓ Database Schema Design
+          </p>
+        </div>
+      )}
+    </div>
+  </>
+)}
 </div>
-)
-}
-
-</div>
-
-
-
-<div
-className={`roadmap-item ${completedSteps.includes(2) ? "completed-step" : ""}`}
-onClick={() => toggleRoadmapStep(2)}
->
-
-<strong>
-{completedSteps.includes(2) ? '✓ ' : '02 — '}
-CRUD APIs
-</strong>
-
-<span>
-Build Create, Read, Update and Delete operations.
-</span>
-
-<small>
-{completedSteps.includes(2)
-? 'Completed'
-: 'Click to mark as completed'}
-</small>
-
-
-{
-completedSteps.includes(2) && (
-<div className="step-details">
-
-<p>
-Difficulty: Intermediate
-</p>
-
-<p>
-Duration: 5 Days
-</p>
-
-<p>
-Topics:
-<br/>
-✓ Create API
-<br/>
-✓ Read API
-<br/>
-✓ Update API
-<br/>
-✓ Delete API
-</p>
-
-</div>
-)
-}
-
-</div>
-
-
-
-
-<div
-className={`roadmap-item ${completedSteps.includes(3) ? "completed-step" : ""}`}
-onClick={() => toggleRoadmapStep(3)}
->
-
-<strong>
-{completedSteps.includes(3) ? '✓ ' : '03 — '}
-MySQL Database
-</strong>
-
-<span>
-Connect your Spring Boot application with MySQL.
-</span>
-
-<small>
-{completedSteps.includes(3)
-? 'Completed'
-: 'Click to mark as completed'}
-</small>
-
-
-{
-completedSteps.includes(3) && (
-<div className="step-details">
-
-<p>
-Difficulty: Intermediate
-</p>
-
-<p>
-Duration: 4 Days
-</p>
-
-<p>
-Topics:
-<br/>
-✓ Database Connection
-<br/>
-✓ JPA & Hibernate
-<br/>
-✓ Entity Mapping
-<br/>
-✓ Repository Layer
-</p>
-
-</div>
-)
-}
-
-</div>
-
-
-
-
-<div
-className={`roadmap-item ${completedSteps.includes(4) ? "completed-step" : ""}`}
-onClick={() => toggleRoadmapStep(4)}
->
-
-<strong>
-{completedSteps.includes(4) ? '✓ ' : '04 — '}
-Spring Boot Security
-</strong>
-
-<span>
-Learn authentication and secure your APIs.
-</span>
-
-<small>
-{completedSteps.includes(4)
-? 'Completed'
-: 'Click to mark as completed'}
-</small>
-
-
-{
-completedSteps.includes(4) && (
-<div className="step-details">
-
-<p>
-Difficulty: Advanced
-</p>
-
-<p>
-Duration: 7 Days
-</p>
-
-<p>
-Topics:
-<br/>
-✓ Authentication
-<br/>
-✓ Authorization
-<br/>
-✓ JWT Security
-<br/>
-✓ Protecting REST APIs
-</p>
-
-</div>
-)
-}
-
-</div>
-
-
-
-
-<div
-className={`roadmap-item ${completedSteps.includes(5) ? "completed-step" : ""}`}
-onClick={() => toggleRoadmapStep(5)}
->
-
-<strong>
-{completedSteps.includes(5) ? '✓ ' : '05 — '}
-Backend Deployment
-</strong>
-
-<span>
-Deploy your backend application for real-world use.
-</span>
-
-<small>
-{completedSteps.includes(5)
-? 'Completed'
-: 'Click to mark as completed'}
-</small>
-
-
-{
-completedSteps.includes(5) && (
-<div className="step-details">
-
-<p>
-Difficulty: Advanced
-</p>
-
-<p>
-Duration: 5 Days
-</p>
-
-<p>
-Topics:
-<br/>
-✓ Cloud Deployment
-<br/>
-✓ Environment Variables
-<br/>
-✓ Production Setup
-</p>
-
-</div>
-)
-}
-
-</div>
-
-
-</div>
-
     <button
       className="back-button"
       onClick={() => setShowRoadmap(false)}

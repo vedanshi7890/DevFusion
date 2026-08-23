@@ -70,10 +70,9 @@ class BackendApplicationTests {
         RoadmapProgress update = new RoadmapProgress(user.getId());
         update.setCompletedSteps("1,3");
         update.setProgressPercentage(40);
-
-        RoadmapProgress savedProgress = roadmapProgressController.updateRoadmap(
-                user.getId(), update
-        );
+RoadmapProgress savedProgress = roadmapProgressController.updateRoadmap(
+        user.getId(), "Spring Boot", update
+);
         List<ProgressHistory> history = progressHistoryController.getHistory(user.getId());
 
         assertEquals("1,3", savedProgress.getCompletedSteps());
@@ -87,7 +86,7 @@ class BackendApplicationTests {
         RoadmapProgress update = new RoadmapProgress(user.getId());
         update.setCompletedSteps("1,2");
         update.setProgressPercentage(40);
-        roadmapProgressController.updateRoadmap(user.getId(), update);
+       roadmapProgressController.updateRoadmap(user.getId(), "Spring Boot", update);
 
         AIAnalysis analysis = aiAnalysisController.getAnalysis(user.getId());
 

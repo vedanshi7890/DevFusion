@@ -1,9 +1,12 @@
 package com.devfusion.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 @Entity
 public class Skill {
@@ -16,12 +19,17 @@ public class Skill {
 
     private int score;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
     public Skill() {
     }
 
-    public Skill(String name, int score) {
+    public Skill(String name, int score, User user) {
         this.name = name;
         this.score = score;
+        this.user = user;
     }
 
     public Long getId() {
@@ -42,5 +50,14 @@ public class Skill {
 
     public void setScore(int score) {
         this.score = score;
+    }
+
+    @JsonIgnore
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

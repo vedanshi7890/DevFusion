@@ -17,7 +17,6 @@ public class RoadmapProgressController {
     private final RoadmapProgressRepository repository;
     private final ProgressHistoryRepository historyRepository;
 
-
     public RoadmapProgressController(
             RoadmapProgressRepository repository,
             ProgressHistoryRepository historyRepository) {
@@ -26,32 +25,30 @@ public class RoadmapProgressController {
         this.historyRepository = historyRepository;
     }
 
+    @GetMapping("/{userId}/{skill}")
+    public RoadmapProgress getRoadmap(
+            @PathVariable Long userId,
+            @PathVariable String skill) {
 
-    @GetMapping("/{userId}")
-    public RoadmapProgress getRoadmap(@PathVariable Long userId) {
-
-        return repository.findByUserId(userId)
+        return repository.findByUserIdAndSkill(userId, skill)
                 .orElseGet(() -> {
 
                     RoadmapProgress roadmap =
-                            new RoadmapProgress(userId);
+                            new RoadmapProgress(userId, skill);
 
                     return repository.save(roadmap);
                 });
     }
 
-
-
-    @PutMapping("/{userId}")
+    @PutMapping("/{userId}/{skill}")
     public RoadmapProgress updateRoadmap(
             @PathVariable Long userId,
+            @PathVariable String skill,
             @RequestBody RoadmapProgress updatedRoadmap) {
 
-
         RoadmapProgress roadmap =
-                repository.findByUserId(userId)
-                .orElse(new RoadmapProgress(userId));
-
+                repository.findByUserIdAndSkill(userId, skill)
+                        .orElse(new RoadmapProgress(userId, skill));
 
         roadmap.setCompletedSteps(
                 updatedRoadmap.getCompletedSteps()
@@ -61,148 +58,171 @@ public class RoadmapProgressController {
                 updatedRoadmap.getProgressPercentage()
         );
 
-
         String steps = updatedRoadmap.getCompletedSteps();
 
-
-        // Step 1
-        if(steps.contains("1")) {
-
-            saveHistoryIfNotExists(
-                    userId,
-                    "REST Controllers"
-            );
-
-        } else {
-
-            deleteHistory(
-                    userId,
-                    "REST Controllers"
-            );
-        }
-
-
-
-        // Step 2
-        if(steps.contains("2")) {
-
-            saveHistoryIfNotExists(
-                    userId,
-                    "CRUD APIs"
-            );
-
-        } else {
-
-            deleteHistory(
-                    userId,
-                    "CRUD APIs"
-            );
-        }
-
-
-
-        // Step 3
-        if(steps.contains("3")) {
-
-            saveHistoryIfNotExists(
-                    userId,
-                    "MySQL Database"
-            );
-
-        } else {
-
-            deleteHistory(
-                    userId,
-                    "MySQL Database"
-            );
-        }
-
-
-
-        // Step 4
-        if(steps.contains("4")) {
-
-            saveHistoryIfNotExists(
-                    userId,
-                    "Spring Boot Security"
-            );
-
-        } else {
-
-            deleteHistory(
-                    userId,
-                    "Spring Boot Security"
-            );
-        }
-
-
-
-        // Step 5
-        if(steps.contains("5")) {
-
-            saveHistoryIfNotExists(
-                    userId,
-                    "Backend Deployment"
-            );
-
-        } else {
-
-            deleteHistory(
-                    userId,
-                    "Backend Deployment"
-            );
-        }
-
-
+        updateHistory(userId, skill, steps);
 
         return repository.save(roadmap);
     }
 
+    private void updateHistory(
+            Long userId,
+            String skill,
+            String steps) {
 
+        for (int i = 1; i <= 5; i++) {
 
+            String stepName = getStepName(skill, i);
 
+            if (stepName == null) {
+                continue;
+            }
+
+            if (steps.contains(String.valueOf(i))) {
+
+                saveHistoryIfNotExists(
+                        userId,
+                        stepName
+                );
+
+            } else {
+
+                deleteHistory(
+                        userId,
+                        stepName
+                );
+            }
+        }
+    }
+
+    private String getStepName(
+            String skill,
+            int step) {
+
+        if (skill.equals("Java")) {
+
+            if (step == 1) {
+                return "OOP Concepts";
+            }
+
+            if (step == 2) {
+                return "Java Collections";
+            }
+
+            if (step == 3) {
+                return "Exception Handling";
+            }
+
+            if (step == 4) {
+                return "Multithreading";
+            }
+
+            if (step == 5) {
+                return "Advanced Java";
+            }
+        }
+
+        if (skill.equals("React")) {
+
+            if (step == 1) {
+                return "React Components";
+            }
+
+            if (step == 2) {
+                return "State Management & Hooks";
+            }
+
+            if (step == 3) {
+                return "API Integration";
+            }
+
+            if (step == 4) {
+                return "React Routing";
+            }
+
+            if (step == 5) {
+                return "Modern React Patterns";
+            }
+        }
+
+        if (skill.equals("SQL")) {
+
+            if (step == 1) {
+                return "SQL Fundamentals";
+            }
+
+            if (step == 2) {
+                return "SQL Joins";
+            }
+
+            if (step == 3) {
+                return "Subqueries & Aggregation";
+            }
+
+            if (step == 4) {
+                return "Indexing & Query Optimization";
+            }
+
+            if (step == 5) {
+                return "Database Design";
+            }
+        }
+
+        if (skill.equals("Spring Boot")) {
+
+            if (step == 1) {
+                return "REST Controllers";
+            }
+
+            if (step == 2) {
+                return "CRUD APIs";
+            }
+
+            if (step == 3) {
+                return "MySQL Database";
+            }
+
+            if (step == 4) {
+                return "Spring Boot Security";
+            }
+
+            if (step == 5) {
+                return "Backend Deployment";
+            }
+        }
+
+        return null;
+    }
 
     private void deleteHistory(
             Long userId,
-            String stepName
-    ) {
-
+            String stepName) {
 
         List<ProgressHistory> history =
                 historyRepository.findByUserId(userId);
 
-
         history.stream()
                 .filter(item ->
-                        item.getStepName()
-                        .equals(stepName)
+                        item.getStepName().equals(stepName)
                 )
                 .forEach(item ->
                         historyRepository.delete(item)
                 );
     }
 
-
-
-
-
     private void saveHistoryIfNotExists(
             Long userId,
-            String stepName
-    ) {
-
+            String stepName) {
 
         boolean exists =
                 historyRepository
-                .findByUserId(userId)
-                .stream()
-                .anyMatch(history ->
-                        history.getStepName()
-                        .equals(stepName)
-                );
+                        .findByUserId(userId)
+                        .stream()
+                        .anyMatch(history ->
+                                history.getStepName().equals(stepName)
+                        );
 
-
-        if(!exists) {
+        if (!exists) {
 
             historyRepository.save(
                     new ProgressHistory(
@@ -213,5 +233,4 @@ public class RoadmapProgressController {
             );
         }
     }
-
 }

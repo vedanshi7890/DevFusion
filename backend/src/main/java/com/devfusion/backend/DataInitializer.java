@@ -1,7 +1,8 @@
 package com.devfusion.backend;
 
-import com.devfusion.backend.model.Skill;
-import com.devfusion.backend.repository.SkillRepository;
+import com.devfusion.backend.model.User;
+import com.devfusion.backend.repository.UserRepository;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,31 +11,21 @@ import org.springframework.context.annotation.Configuration;
 public class DataInitializer {
 
     @Bean
-    CommandLineRunner loadData(SkillRepository skillRepository) {
+    CommandLineRunner loadData(UserRepository userRepository) {
 
         return args -> {
 
-            if (skillRepository.count() == 0) {
+            if (userRepository.count() == 0) {
 
-                Skill java = new Skill();
-                java.setName("Java");
-                java.setScore(85);
-                skillRepository.save(java);
+                User user = new User(
+                        "Demo Student",
+                        "demo@devfusion.com",
+                        "demo123",
+                        "STUDENT",
+                        "Backend Developer"
+                );
 
-                Skill sql = new Skill();
-                sql.setName("SQL");
-                sql.setScore(75);
-                skillRepository.save(sql);
-
-                Skill react = new Skill();
-                react.setName("React");
-                react.setScore(60);
-                skillRepository.save(react);
-
-                Skill spring = new Skill();
-                spring.setName("Spring Boot");
-                spring.setScore(40);
-                skillRepository.save(spring);
+                userRepository.save(user);
             }
         };
     }
