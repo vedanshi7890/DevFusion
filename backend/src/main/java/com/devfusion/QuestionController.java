@@ -11,12 +11,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/questions")
 @CrossOrigin(origins = {
         "http://localhost:5173",
-        "http://localhost:5174"
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176"
 })
 public class QuestionController {
 
@@ -27,13 +30,20 @@ public class QuestionController {
     }
 
     @GetMapping("/{skill}")
-    public List<QuestionResponse> getQuestionsBySkill(
+    public List<QuestionResponse> getSkillAssessment(
             @PathVariable String skill) {
 
         List<Question> questions =
                 questionRepository.findBySkill(skill);
 
-        return questions.stream()
+        Collections.shuffle(questions);
+
+        List<Question> selectedQuestions =
+                questions.stream()
+                        .limit(5)
+                        .toList();
+
+        return selectedQuestions.stream()
                 .map(QuestionResponse::from)
                 .toList();
     }

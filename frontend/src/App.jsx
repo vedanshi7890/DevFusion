@@ -11,6 +11,7 @@ function App() {
   const [skills, setSkills] = useState([])
  const [history, setHistory] = useState([])
 const [analysis, setAnalysis] = useState(null)
+const [assessmentHistory, setAssessmentHistory] = useState([])
 const [userId, setUserId] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [recommendation, setRecommendation] = useState('')
@@ -83,6 +84,26 @@ const [userId, setUserId] = useState(null)
 
   }
 
+}
+
+async function loadAssessmentHistory(id) {
+  try {
+    const response = await fetch(
+      `http://localhost:8080/api/assessment-history/${id}`
+    )
+
+    if (!response.ok) {
+      throw new Error("Failed to load assessment history")
+    }
+
+    const data = await response.json()
+
+    setAssessmentHistory(data)
+
+  } catch (error) {
+    console.error("Error loading assessment history:", error)
+    setAssessmentHistory([])
+  }
 }
 async function loadAnalysis(id){
 
@@ -258,8 +279,7 @@ await loadHistory(id)
 
       const data = await response.json()
       
-await loadHistory(userId)
-await loadAnalysis(userId)
+
 
 setCompletedSteps(
   data.completedSteps
@@ -478,6 +498,7 @@ async function handleContinue() {
     await loadHistory(userId)
 
     await loadAnalysis(userId)
+    await loadAssessmentHistory(userId)
 
     setDashboard(true)
 
@@ -504,6 +525,221 @@ async function handleContinue() {
 
     return Math.round(total / skills.length)
   }
+
+  function calculateAssessmentAverage() {
+
+  if (assessmentHistory.length === 0) {
+    return 0
+  }
+
+  let total = 0
+
+  for (let i = 0; i < assessmentHistory.length; i++) {
+    total = total + assessmentHistory[i].score
+  }
+
+  return Math.round(
+    total / assessmentHistory.length
+  )
+}
+
+function getSkillAverage(skill) {
+
+  const skillAttempts = assessmentHistory.filter(
+    attempt => attempt.skill === skill
+  )
+
+  if (skillAttempts.length === 0) {
+    return 0
+  }
+
+  let total = 0
+
+  for (let i = 0; i < skillAttempts.length; i++) {
+    total = total + skillAttempts[i].score
+  }
+
+  return Math.round(total / skillAttempts.length)
+}
+
+function getProgressTrend() {
+
+  if (assessmentHistory.length < 2) {
+    return "Not enough data"
+  }
+
+  const latest =
+    assessmentHistory[0].score
+
+  const previous =
+    assessmentHistory[1].score
+
+  if (latest > previous) {
+    return "Improving"
+  }
+
+  if (latest < previous) {
+    return "Declining"
+  }
+
+  return "Stable"
+}
+function getAchievements() {
+
+  const achievements = []
+
+  if (assessmentHistory.length >= 1) {
+    achievements.push({
+      name: "First Assessment",
+      unlocked: true,
+      message: "First assessment completed"
+    })
+  }
+
+  if (assessmentHistory.length >= 5) {
+    achievements.push({
+      name: "5 Assessments",
+      unlocked: true,
+      message: "Completed 5 assessments"
+    })
+  } else {
+    achievements.push({
+      name: "5 Assessments",
+      unlocked: false,
+      message: `${5 - assessmentHistory.length} more assessment needed`
+    })
+  }
+
+  const attemptedSkills = []
+
+  for (let i = 0; i < assessmentHistory.length; i++) {
+
+    if (!attemptedSkills.includes(assessmentHistory[i].skill)) {
+      attemptedSkills.push(assessmentHistory[i].skill)
+    }
+
+  }
+
+  if (attemptedSkills.length >= 4) {
+    achievements.push({
+      name: "Skill Explorer",
+      unlocked: true,
+      message: "Attempted all 4 skills"
+    })
+  } else {
+    achievements.push({
+      name: "Skill Explorer",
+      unlocked: false,
+      message: "Attempt all 4 skills"
+    })
+  }
+
+  if (assessmentHistory.length >= 2) {
+
+    const latest = assessmentHistory[0].score
+    const previous = assessmentHistory[1].score
+
+    if (latest > previous) {
+      achievements.push({
+        name: "Improving Developer",
+        unlocked: true,
+        message: "Recent score improved"
+      })
+    } else {
+      achievements.push({
+        name: "Improving Developer",
+        unlocked: false,
+        message: "Improve your next assessment score"
+      })
+    }
+
+  } else {
+    achievements.push({
+      name: "Improving Developer",
+      unlocked: false,
+      message: "Complete another assessment"
+    })
+  }
+
+  return achievements
+}
+
+function getBestScore() {
+
+  if (assessmentHistory.length === 0) {
+    return 0
+  }
+
+  let best = 0
+
+  for (let i = 0; i < assessmentHistory.length; i++) {
+
+    if (assessmentHistory[i].score > best) {
+      best = assessmentHistory[i].score
+    }
+
+  }
+
+  return best
+}
+function getStrongestSkill() {
+
+  const skillsToCheck = [
+    "Java",
+    "SQL",
+    "React",
+    "Spring Boot"
+  ]
+
+  let strongestSkill = "None"
+  let highestScore = -1
+
+  for (let i = 0; i < skillsToCheck.length; i++) {
+
+    const score = getSkillAverage(skillsToCheck[i])
+
+    if (score > highestScore && score > 0) {
+      highestScore = score
+      strongestSkill = skillsToCheck[i]
+    }
+
+  }
+
+  return strongestSkill
+}
+
+function getFocusSkill() {
+
+  const skillsToCheck = [
+    "Java",
+    "SQL",
+    "React",
+    "Spring Boot"
+  ]
+
+  let focusSkill = "None"
+  let lowestScore = 101
+
+  for (let i = 0; i < skillsToCheck.length; i++) {
+
+    const score = getSkillAverage(skillsToCheck[i])
+
+    if (
+      assessmentHistory.some(
+        attempt => attempt.skill === skillsToCheck[i]
+      ) &&
+      score < lowestScore
+    ) {
+      lowestScore = score
+      focusSkill = skillsToCheck[i]
+    }
+
+  }
+
+  return focusSkill
+}
+
+
   function calculateCareerReadiness() {
 
   if (skills.length === 0) {
@@ -684,6 +920,7 @@ function getWeakestSkill() {
 
     await loadHistory(userId)
     await loadAnalysis(userId)
+    await loadAssessmentHistory(userId)
 }}
 />
 
@@ -762,13 +999,13 @@ function getWeakestSkill() {
           <section className="dashboard-stats">
 
             <div className="stat-card">
-              <span>Overall Skill Score</span>
+              <span>Current Skill Score</span>
 
               <strong>{calculateAverage()}%</strong>
 
               <small>
                 {skills.length > 0
-                  ? 'Based on your technical skills'
+                  ? 'Based on your current skill scores'
                   : 'No skills available'}
               </small>
             </div>
@@ -779,8 +1016,8 @@ function getWeakestSkill() {
              <strong>{calculateCareerReadiness()}%</strong>
 
               <small>
-                {getReadinessStatus()}
-              </small>
+  {getReadinessStatus()} · Based on {skills.length} tracked skills
+</small>
             </div>
 
             <div className="stat-card">
@@ -873,42 +1110,58 @@ function getWeakestSkill() {
     </button>
 
 </div>
-            <div className="dashboard-skills">
+          <div className="dashboard-skills">
 
-              {skills.map((skill) => (
+  {skills.map((skill) => (
 
-                <div
-                  className="dashboard-skill"
-                  key={skill.id}
-                >
+    <div
+      className="dashboard-skill"
+      key={skill.id}
+    >
 
-                  <div>
-  <span>{skill.name}</span>
+      <div className="skill-card-header">
 
-  <strong>{skill.score}%</strong>
+        <div>
+          <span>{skill.name}</span>
 
-  <small>
-    {getSkillStatus(skill.score)}
-  </small>
+          <small>
+            {getSkillStatus(skill.score)}
+          </small>
+        </div>
+
+        <strong>
+          {skill.score}%
+        </strong>
+
+      </div>
+
+      <div className="progress">
+
+        <div
+          className="progress-fill java"
+          style={{
+            width: skill.score + '%'
+          }}
+        >
+        </div>
+
+      </div>
+
+      <p className="skill-card-message">
+
+        {skill.score >= 80
+          ? "Excellent performance. Keep maintaining this skill."
+          : skill.score >= 60
+          ? "Good progress. Continue practicing to strengthen this skill."
+          : "Needs improvement. Focus on learning and regular practice."}
+
+      </p>
+
+    </div>
+
+  ))}
+
 </div>
-
-                  <div className="progress">
-
-                    <div
-                      className="progress-fill java"
-                      style={{
-                        width: skill.score + '%'
-                      }}
-                    >
-                    </div>
-
-                  </div>
-
-                </div>
-
-              ))}
-
-            </div>
 
           </section>
 
@@ -1137,6 +1390,318 @@ Next Recommendation:
   )
 }
 
+
+</section>
+<section className="profile-card">
+
+  <p className="section-label">
+    PROGRESS ANALYTICS
+  </p>
+
+  <h2>
+    Assessment Progress
+  </h2>
+
+  <div className="dashboard-stats">
+
+    <div className="stat-card">
+      <span>Assessments Taken</span>
+
+      <strong>
+        {assessmentHistory.length}
+      </strong>
+
+      <small>
+        Total attempts
+      </small>
+    </div>
+
+    <div className="stat-card">
+      <span>Average Score</span>
+
+      <strong>
+        {calculateAssessmentAverage()}%
+      </strong>
+
+      <small>
+        Across all assessments
+      </small>
+    </div>
+<div className="stat-card">
+  <span>Progress Trend</span>
+
+  <strong>
+    {getProgressTrend()}
+  </strong>
+
+  <small>
+    Based on recent attempts
+  </small>
+</div>
+<div className="stat-card">
+  <span>Best Score</span>
+
+  <strong>
+    {getBestScore()}%
+  </strong>
+
+  <small>
+    Highest assessment score
+  </small>
+</div>
+
+
+<div className="stat-card">
+  <span>Strongest Skill</span>
+
+  <strong>
+    {getStrongestSkill()}
+  </strong>
+
+  <small>
+    Highest skill performance
+  </small>
+</div>
+
+
+<div className="stat-card">
+  <span>Focus Skill</span>
+
+  <strong>
+    {getFocusSkill()}
+  </strong>
+
+  <small>
+    Skill needing more practice
+  </small>
+</div>
+  </div>
+
+  <h3 style={{ marginTop: "30px" }}>
+    Skill-wise Progress
+  </h3>
+
+  <div className="dashboard-stats">
+
+   
+<div className="stat-card">
+
+  <span>Java</span>
+
+  <strong>
+    {getSkillAverage("Java")}%
+  </strong>
+
+  <div
+    style={{
+      width: "100%",
+      height: "8px",
+      background: "#1e293b",
+      borderRadius: "10px",
+      marginTop: "12px",
+      overflow: "hidden"
+    }}
+  >
+    <div
+      style={{
+        width: `${getSkillAverage("Java")}%`,
+        height: "100%",
+        background: "#22d3ee",
+        borderRadius: "10px"
+      }}
+    ></div>
+  </div>
+
+  <small>
+    Assessment performance
+  </small>
+
+</div>
+    <div className="stat-card">
+
+  <span>SQL</span>
+
+  <strong>
+    {getSkillAverage("SQL")}%
+  </strong>
+
+  <div
+    style={{
+      width: "100%",
+      height: "8px",
+      background: "#1e293b",
+      borderRadius: "10px",
+      marginTop: "12px",
+      overflow: "hidden"
+    }}
+  >
+    <div
+      style={{
+        width: `${getSkillAverage("SQL")}%`,
+        height: "100%",
+        background: "#22d3ee",
+        borderRadius: "10px"
+      }}
+    ></div>
+  </div>
+
+  <small>
+    Assessment performance
+  </small>
+
+</div>
+
+    <div className="stat-card">
+
+  <span>React</span>
+
+  <strong>
+    {getSkillAverage("React")}%
+  </strong>
+
+  <div
+    style={{
+      width: "100%",
+      height: "8px",
+      background: "#1e293b",
+      borderRadius: "10px",
+      marginTop: "12px",
+      overflow: "hidden"
+    }}
+  >
+    <div
+      style={{
+        width: `${getSkillAverage("React")}%`,
+        height: "100%",
+        background: "#22d3ee",
+        borderRadius: "10px"
+      }}
+    ></div>
+  </div>
+
+  <small>
+    Assessment performance
+  </small>
+
+</div>
+
+    <div className="stat-card">
+
+  <span>Spring Boot</span>
+
+  <strong>
+    {getSkillAverage("Spring Boot")}%
+  </strong>
+
+  <div
+    style={{
+      width: "100%",
+      height: "8px",
+      background: "#1e293b",
+      borderRadius: "10px",
+      marginTop: "12px",
+      overflow: "hidden"
+    }}
+  >
+    <div
+      style={{
+        width: `${getSkillAverage("Spring Boot")}%`,
+        height: "100%",
+        background: "#22d3ee",
+        borderRadius: "10px"
+      }}
+    ></div>
+  </div>
+
+  <small>
+    Assessment performance
+  </small>
+
+</div>
+
+  </div>
+
+</section>
+
+<h3 style={{ marginTop: "30px" }}>
+  Achievements & Milestones
+</h3>
+
+<div className="dashboard-stats">
+
+  {getAchievements().map((achievement, index) => (
+
+  <div className="achievement-card" key={index}>
+
+    <span>
+      {achievement.unlocked ? "🏆 Achievement" : "🔒 Locked"}
+    </span>
+
+    <strong>
+      {achievement.name}
+    </strong>
+
+    <small>
+      {achievement.message}
+    </small>
+
+  </div>
+
+))}
+
+</div>
+<section className="profile-card">
+
+  <p className="section-label">
+    ASSESSMENT HISTORY
+  </p>
+
+  <h2>
+    Assessment Attempt History
+  </h2>
+
+  {assessmentHistory.length > 0 ? (
+
+    assessmentHistory.map((item) => (
+
+      <div
+        className="journey-item"
+        key={item.id}
+      >
+
+        <strong>
+          {item.skill} Assessment
+        </strong>
+
+        <p>
+          Score: {item.score}%
+        </p>
+
+        <p>
+          Correct Answers: {item.correctAnswers} / {item.totalQuestions}
+        </p>
+
+       <small>
+  Attempted: {new Date(item.attemptedAt).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  })}
+</small>
+
+      </div>
+
+    ))
+
+  ) : (
+
+    <p>
+      No assessment attempts available yet.
+    </p>
+
+  )}
 
 </section>
           {showRoadmap && (

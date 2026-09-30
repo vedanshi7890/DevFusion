@@ -1,10 +1,12 @@
 package com.devfusion.backend;
 
+import com.devfusion.backend.model.AssessmentAttempt;
 import com.devfusion.backend.model.AssessmentRequest;
 import com.devfusion.backend.model.AssessmentResult;
 import com.devfusion.backend.model.Question;
 import com.devfusion.backend.model.Skill;
 import com.devfusion.backend.model.User;
+import com.devfusion.backend.repository.AssessmentAttemptRepository;
 import com.devfusion.backend.repository.QuestionRepository;
 import com.devfusion.backend.repository.SkillRepository;
 import com.devfusion.backend.repository.UserRepository;
@@ -27,15 +29,18 @@ public class AssessmentController {
     private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
     private final SkillRepository skillRepository;
+    private final AssessmentAttemptRepository assessmentAttemptRepository;
 
     public AssessmentController(
             QuestionRepository questionRepository,
             UserRepository userRepository,
-            SkillRepository skillRepository) {
+            SkillRepository skillRepository,
+            AssessmentAttemptRepository assessmentAttemptRepository) {
 
         this.questionRepository = questionRepository;
         this.userRepository = userRepository;
         this.skillRepository = skillRepository;
+        this.assessmentAttemptRepository = assessmentAttemptRepository;
     }
 
     @PostMapping("/submit")
@@ -52,8 +57,10 @@ public class AssessmentController {
                     .body("User not found");
         }
 
-        List<Question> questions =
-                questionRepository.findBySkill(request.skill());
+        Map<Long, String> answers = request.answers();
+
+List<Question> questions =
+        questionRepository.findAllById(answers.keySet());
 
         if (questions.isEmpty()) {
             return ResponseEntity
@@ -61,8 +68,7 @@ public class AssessmentController {
                     .body("No questions found for this skill");
         }
 
-        Map<Long, String> answers = request.answers();
-
+       
         int correctAnswers = 0;
 
         for (Question question : questions) {
@@ -92,6 +98,25 @@ public class AssessmentController {
         skill.setUser(user);
 
         skillRepository.save(skill);
+
+        // Save assessment attempt
+        AssessmentAttempt attempt = new AssessmentAttempt(
+                user.getId(),
+                request.skill(),
+                score,
+                correctAnswers,
+                totalQuestions
+        );
+
+        AssessmentAttempt savedAttempt =
+        assessmentAttemptRepository.save(attempt);
+
+System.out.println(
+        "ASSESSMENT SAVED: ID=" + savedAttempt.getId()
+                + ", USER=" + savedAttempt.getUserId()
+                + ", SKILL=" + savedAttempt.getSkill()
+                + ", SCORE=" + savedAttempt.getScore()
+);
 
         AssessmentResult result = new AssessmentResult(
                 request.skill(),

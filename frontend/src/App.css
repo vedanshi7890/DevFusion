@@ -738,7 +738,7 @@ a {
   margin: 55px 0 70px;
 }
 
-.stat-card {
+ .stat-card {
   min-height: 160px;
 
   padding: 25px;
@@ -785,6 +785,58 @@ a {
 
   font-size: 13px;
 }
+/* ================================
+   ACHIEVEMENT CARDS
+================================ */
+
+.achievement-card {
+  min-height: 180px;
+
+  padding: 25px;
+
+  border-radius: 20px;
+
+  border: 1px solid rgba(74, 218, 244, 0.18);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(26, 40, 61, 0.95),
+      rgba(12, 27, 45, 0.9)
+    );
+
+  display: flex;
+
+  flex-direction: column;
+}
+
+.achievement-card span {
+  color: #98acc4;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+  margin-bottom: 15px;
+}
+
+.achievement-card strong {
+  color: #58e7fa;
+
+  font-size: 36px;
+
+  line-height: 1.05;
+
+  margin-bottom: 12px;
+
+  letter-spacing: -1.5px;
+}
+
+.achievement-card small {
+  color: #9db0c6;
+
+  font-size: 13px;
+}
 
 /* ================================
    DASHBOARD SECTION
@@ -811,7 +863,7 @@ a {
    ASSESSMENT BUTTONS
 ================================ */
 
-.assessment-buttons {
+.assessment-bu.statttons {
   display: grid;
 
   grid-template-columns:
@@ -846,13 +898,74 @@ a {
 }
 
 .dashboard-skill {
-  padding: 25px;
+  padding: 26px;
 
-  border-radius: 19px;
+  border-radius: 20px;
 
-  border: 1px solid rgba(96, 125, 157, 0.2);
+  border: 1px solid rgba(92, 127, 160, 0.2);
 
-  background: rgba(24, 38, 59, 0.8);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(26, 40, 61, 0.95),
+      rgba(12, 27, 45, 0.9)
+    );
+
+  min-height: 145px;
+
+  display: flex;
+  flex-direction: column;
+
+  justify-content: space-between;
+}
+.skill-card-header {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.skill-card-header > div {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+.skill-card-header span {
+  font-size: 18px;
+
+  font-weight: 700;
+
+  color: #f2f6fb;
+}
+
+.skill-card-header small {
+  color: #9db0c6;
+
+  font-size: 14px;
+}
+
+.skill-card-header strong {
+  color: #58e7fa;
+
+  font-size: 30px;
+
+  line-height: 1;
+}
+
+.skill-card-message {
+  margin-top: 12px;
+
+  color: #9db0c6;
+
+  font-size: 14px;
+
+  line-height: 1.5;
 }
 
 .dashboard-skill > div:first-child {
@@ -1258,9 +1371,36 @@ a {
   }
 
   .assessment-buttons {
-    grid-template-columns:
-      repeat(2, 1fr);
-  }
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 12px;
+
+  margin-bottom: 24px;
+}
+.assessment-buttons .hero-button {
+  width: 100%;
+
+  min-height: 58px;
+
+  border-radius: 14px;
+
+  padding: 14px 18px;
+
+  white-space: nowrap;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.assessment-buttons .hero-button:hover {
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 10px 25px rgba(74, 218, 244, 0.18);
+}
 
   .recommendation-details {
     grid-template-columns: 1fr;
